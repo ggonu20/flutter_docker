@@ -1,0 +1,47 @@
+FROM ubuntu:18.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y curl git unzip xz-utils zip libglu1-mesa wget
+
+# Download and install OpenJDK 17
+RUN wget -O openjdk-17.tar.gz https://download.java.net/openjdk/jdk17.0.0.1/ri/openjdk-17.0.0.1+2_linux-x64_bin.tar.gz
+RUN mkdir -p /usr/lib/jvm
+RUN tar -xzf openjdk-17.tar.gz -C /usr/lib/jvm
+RUN rm openjdk-17.tar.gz
+ENV JAVA_HOME=/usr/lib/jvm/jdk-17.0.0.1
+ENV PATH="$JAVA_HOME/bin:$PATH"
+
+# Set up new user
+RUN useradd -ms /bin/bash developer
+USER developer
+WORKDIR /home/developer
+
+# Prepare Android directories and system variables
+RUN mkdir -p Android/sdk
+ENV ANDROID_SDK_ROOT=/home/developer/Android/sdk
+RUN mkdir -p .android && touch .android/repositories.cfg
+
+# Set up Android SDK
+RUN wget -O commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip?hl=es-419
+RUN unzip commandlinetools.zip && rm commandlinetools.zip
+RUN mv cmdline-tools $ANDROID_SDK_ROOT
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest
+RUN sh -c 'mv $ANDROID_SDK_ROOT/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/ || true'
+RUN yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+RUN yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+ENV PATH="$PATH:${ANDROID_SDK_ROOT}/platform-tools"
+
+
+#Flutter Version
+ENV FLUTTER_VERSION=3.7.12
+
+#Download Flutter SDK
+RUN git clone https://github.com/flutter/flutter.git -b ${FLUTTER_VERSION} --depth 1
+ENV PATH="$PATH:/home/developer/flutter/bin"
+
+# Run basic check to download Dark SDK
+RUN flutter doctor
+
+# Set workspace directory and clone additional repository
+WORKDIR /home/developer/workspace
+RUN git clone https://github.com/exdevutem/mi-utem.git
